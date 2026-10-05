@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, exams, sheets, transcript, marks, publish, student, appeals, admin, evaluation, tutor
+from app.api.v1 import auth, exams, sheets, transcript, marks, publish, student, appeals, admin, evaluation, tutor, ocr
 
 api_router = APIRouter()
 
@@ -7,6 +7,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(exams.router, prefix="/exams", tags=["Exams"])
 api_router.include_router(sheets.router, tags=["Answer Sheets"])
+api_router.include_router(ocr.router, tags=["AIML-2 OCR & Segmentation"])
 api_router.include_router(evaluation.router, tags=["Evaluation"])
 api_router.include_router(evaluation.kb_router, tags=["Knowledge Base"])
 api_router.include_router(transcript.router, tags=["Transcript"])

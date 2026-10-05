@@ -53,15 +53,18 @@ def run_pipeline(sheet_id: str, manual_segments: Optional[List[Dict[str, Any]]] 
 
         # Step 3: OCR_COMPLETE (stub or tool_run_ocr)
         emit_status_event(sheet_id, "OCR_COMPLETE")
+        lines = tool_run_ocr(sheet.get("image_bytes") or b"")
 
         # Step 4: SEGMENTED (accepts manual_segments or uses tool_segment_transcript)
         emit_status_event(sheet_id, "SEGMENTED")
         if manual_segments:
             segmented = manual_segments
         else:
-            segmented = [
-                {"question_number": 1, "text": "TCP 3-way handshake uses SYN, SYN-ACK, ACK.", "ocr_confidence": 0.95}
-            ]
+            segmented = tool_segment_transcript(lines)
+            if not segmented:
+                segmented = [
+                    {"question_number": 1, "text": "TCP 3-way handshake uses SYN, SYN-ACK, ACK.", "ocr_confidence": 0.95}
+                ]
 
         # Step 5: INDEXED
         emit_status_event(sheet_id, "INDEXED")
