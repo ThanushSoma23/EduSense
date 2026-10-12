@@ -10,6 +10,9 @@ jobs:
   unit-tests:
     name: Fast Unit Tests (SQLite)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "backend and database"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,6 +35,9 @@ jobs:
   postgres-integration-tests:
     name: Database Integration & Triggers (PostgreSQL 17)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "backend and database"
 
     services:
       postgres:
