@@ -1,0 +1,38 @@
+import enum
+from datetime import datetime, timezone
+from sqlalchemy import Column, Integer, String, Enum as SQLEnum, DateTime, Index
+from sqlalchemy.orm import relationship
+from app.database import Base
+
+
+class UserRole(str, enum.Enum):
+    TEACHER = "teacher"
+    STUDENT = "student"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.STUDENT)
+    account_status = Column(String(50), nullable=False, default="active")
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    # Relationships
+    exams = relationship("Exam", back_populates="teacher", cascade="all, delete-orphan")
+    submissions = relationship("AnswerSheet", back_populates="student", cascade="all, delete-orphan")
+    reviewed_final_marks = relationship("FinalMark", back_populates="reviewing_teacher")
+    audit_logs = relationship("AuditLog", back_populates="teacher")
+
+    __table_args__ = (
+        Index("idx_users_email_role", "email", "role"),
+    )
