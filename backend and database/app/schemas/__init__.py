@@ -13,6 +13,8 @@ from app.schemas.submission import (
     AnswerSheetResponse,
     StudentAnswerCreate,
     StudentAnswerResponse,
+    TranscribeSubmissionResponse,
+    TranscribedAnswerItem,
 )
 from app.schemas.evaluation import (
     EvaluationCreate,
