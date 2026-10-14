@@ -1,12 +1,18 @@
-# Python
+# Python compiled files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Virtual environments
 venv/
+.venv/
 env/
 ENV/
+AIML-2/venv/
+
+# Pytest, coverage & testing caches
 .pytest_cache/
 .coverage
 htmlcov/
@@ -15,16 +21,22 @@ htmlcov/
 .env
 .env.local
 
-# Databases
+# Databases & local stores
 *.db
 *.sqlite
 *.sqlite3
 
-# IDEs
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 
+# OS files
+Thumbs.db
+.DS_Store
+
 # Untracked unrelated directories
 dsn/
+node_modules/
+dist/
