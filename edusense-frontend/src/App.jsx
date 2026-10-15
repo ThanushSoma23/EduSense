@@ -1,0 +1,13 @@
+import React from "react";
+import {Navigate,Route,Routes} from "react-router-dom";
+import {useAuth} from "./context/AuthContext";
+import Layout from "./components/Layout";
+import Landing from "./pages/Landing"; import Login from "./pages/auth/Login"; import Register from "./pages/auth/Register";
+import StudentDashboard from "./pages/student/StudentDashboard"; import Results from "./pages/student/Results"; import Tutor from "./pages/student/Tutor"; import Appeals from "./pages/student/Appeals";
+import TeacherDashboard from "./pages/teacher/TeacherDashboard"; import Exams from "./pages/teacher/Exams"; import UploadSheets from "./pages/teacher/UploadSheets"; import Evaluation from "./pages/teacher/Evaluation"; import KnowledgeBase from "./pages/teacher/KnowledgeBase"; import Publish from "./pages/teacher/Publish";
+import AdminDashboard from "./pages/admin/AdminDashboard"; import NotFound from "./pages/NotFound";
+function Protected({children,roles}){const{user,loading}=useAuth();if(loading)return <div className="screen-center">Loading EduSense...</div>;if(!user)return <Navigate to="/login" replace/>;if(roles&&!roles.includes(user.role))return <Navigate to={`/${user.role||"student"}`} replace/>;return children}
+export default function App(){return <Routes><Route path="/" element={<Landing/>}/><Route path="/login" element={<Login/>}/><Route path="/register" element={<Register/>}/><Route element={<Protected><Layout/></Protected>}>
+<Route path="/student" element={<Protected roles={["student"]}><StudentDashboard/></Protected>}/><Route path="/student/results" element={<Protected roles={["student"]}><Results/></Protected>}/><Route path="/student/tutor" element={<Protected roles={["student"]}><Tutor/></Protected>}/><Route path="/student/appeals" element={<Protected roles={["student"]}><Appeals/></Protected>}/>
+<Route path="/teacher" element={<Protected roles={["teacher"]}><TeacherDashboard/></Protected>}/><Route path="/teacher/exams" element={<Protected roles={["teacher"]}><Exams/></Protected>}/><Route path="/teacher/upload" element={<Protected roles={["teacher"]}><UploadSheets/></Protected>}/><Route path="/teacher/evaluation" element={<Protected roles={["teacher"]}><Evaluation/></Protected>}/><Route path="/teacher/knowledge" element={<Protected roles={["teacher"]}><KnowledgeBase/></Protected>}/><Route path="/teacher/publish" element={<Protected roles={["teacher"]}><Publish/></Protected>}/>
+<Route path="/admin" element={<Protected roles={["admin"]}><AdminDashboard/></Protected>}/></Route><Route path="*" element={<NotFound/>}/></Routes>}
