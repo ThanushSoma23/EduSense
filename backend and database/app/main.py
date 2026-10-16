@@ -45,7 +45,7 @@ app.add_middleware(
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["Authorization", "Content-Type", "X-Service-Key", "X-Admin-Secret"],
+    allow_headers=["*"],
 )
 
 # Global Exception Handlers
@@ -64,6 +64,7 @@ app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["System Health"])
+@app.get(f"{settings.API_V1_STR}/health", tags=["System Health"])
 def health_check():
     return {
         "status": "healthy",

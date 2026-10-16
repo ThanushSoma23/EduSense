@@ -88,6 +88,13 @@ def get_student_final_results(
     if not exam:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
 
+    # Invariant 5: Results remain invisible to students until published or reviewed by teacher
+    if current_user.role == UserRole.STUDENT and exam.status != "PUBLISHED" and submission.processing_status != "REVIEWED":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access restricted: Exam results have not been published by the teacher yet."
+        )
+
     questions = db.query(Question).filter(Question.exam_id == exam.id).order_by(Question.question_number).all()
 
     question_results = []
