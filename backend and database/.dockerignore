@@ -1,0 +1,28 @@
+# Git and version control
+.git
+.gitignore
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local databases and runtime state
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads and user generated data
+uploads/
+
+# Python and test artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local model caches (weights are provisioned into /root/.EasyOCR/model)
+.EasyOCR_model/
+*.pth

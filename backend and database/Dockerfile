@@ -30,10 +30,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 3. Bake EasyOCR English detection and recognition models into the image at build time
-# Uses pre-cached craft_mlt_25k.pth and english_g2.pth
+# Uses the checksum-verifying provisioner to download and verify official weights
 RUN mkdir -p /root/.EasyOCR/model
-COPY .EasyOCR_model/* /root/.EasyOCR/model/
-RUN python -c "import easyocr; reader = easyocr.Reader(['en'], gpu=False, download_enabled=False); print('EasyOCR offline weight verification complete.')" \
+COPY scripts/provision_easyocr_models.py /app/scripts/provision_easyocr_models.py
+RUN python /app/scripts/provision_easyocr_models.py /root/.EasyOCR/model \
+    && python -c "import easyocr; reader = easyocr.Reader(['en'], gpu=False, download_enabled=False); print('EasyOCR offline weight verification complete.')" \
     && test -f /root/.EasyOCR/model/craft_mlt_25k.pth \
     && test -f /root/.EasyOCR/model/english_g2.pth
 
