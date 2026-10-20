@@ -1,62 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Save, FileUp, Sparkles, HelpCircle, Camera, Image, X, RotateCw, AlertCircle, Check, BookOpen, Layers } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Plus, Trash2, Save, FileUp, Sparkles, HelpCircle, Camera, Image, X, RotateCw, AlertCircle, Check, BookOpen, Layers, Edit3 } from 'lucide-react'
 import { api } from '../lib/api'
 import toast from 'react-hot-toast'
 
 export const ExamSetupPage = () => {
   const navigate = useNavigate()
-  const [semester, setSemester] = useState(6)
+  const [searchParams] = useSearchParams()
+  const examId = searchParams.get('exam_id') || searchParams.get('id')
+
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [semester, setSemester] = useState('')
   const [section, setSection] = useState(1)
-  const [title, setTitle] = useState('Operating Systems Midterm')
-  const [subject, setSubject] = useState('Operating Systems')
-  const [code, setCode] = useState('CS-402')
+  const [title, setTitle] = useState('')
+  const [subject, setSubject] = useState('')
+  const [code, setCode] = useState('')
+
   const [subjectsList, setSubjectsList] = useState([])
-  const [isCustomSubject, setIsCustomSubject] = useState(false)
+  const [loadingSubjects, setLoadingSubjects] = useState(false)
+  const [subjectsError, setSubjectsError] = useState(null)
+
   const [refFile, setRefFile] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  useEffect(() => {
-    fetchSubjects()
-  }, [])
-
-  const fetchSubjects = async () => {
-    try {
-      const res = await api.get('/subjects')
-      const list = Array.isArray(res.data) ? res.data : []
-      setSubjectsList(list)
-      if (list.length > 0 && !subject) {
-        setSubject(list[0].name)
-        if (list[0].code) setCode(list[0].code)
-        if (list[0].default_semester) setSemester(list[0].default_semester)
-      }
-    } catch (err) {
-      console.warn('Could not load subjects catalog:', err)
-      // Fallback defaults
-      setSubjectsList([
-        { id: '1', name: 'Operating Systems', code: 'CS-402', default_semester: 6 },
-        { id: '2', name: 'Data Structures and Algorithms', code: 'CS-301', default_semester: 3 },
-        { id: '3', name: 'Artificial Intelligence', code: 'CS-601', default_semester: 6 },
-        { id: '4', name: 'Database Management Systems', code: 'CS-401', default_semester: 4 },
-        { id: '5', name: 'Computer Networks', code: 'CS-501', default_semester: 5 }
-      ])
-    }
-  }
-
-  const handleSelectSubject = (val) => {
-    if (val === '__custom__') {
-      setIsCustomSubject(true)
-      setSubject('')
-      return
-    }
-    setIsCustomSubject(false)
-    setSubject(val)
-    const match = subjectsList.find((s) => s.name === val)
-    if (match) {
-      if (match.code) setCode(match.code)
-      if (match.default_semester) setSemester(match.default_semester)
-    }
-  }
 
   // File input refs for desktop and mobile camera
   const fileInputRefs = useRef({})
@@ -79,6 +44,135 @@ export const ExamSetupPage = () => {
       ocrConfidence: null
     }
   ])
+
+  // Helper to parse rubric into concept badges
+  const parseRubricConcepts = (rubricData) => {
+    if (!rubricData) return []
+    try {
+      const parsed = typeof rubricData === 'string' ? JSON.parse(rubricData) : rubricData
+      if (Array.isArray(parsed)) {
+        return parsed.map((item, idx) => ({
+          id: `c-${idx}`,
+          label: typeof item === 'string' ? item : item.label || String(item)
+        }))
+      }
+    } catch {
+      return [{ id: 'c-0', label: String(rubricData) }]
+    }
+    return []
+  }
+
+  // 1. Load existing exam for edit mode if examId parameter is present
+  useEffect(() => {
+    if (!examId) return
+
+    const loadExamForEditing = async () => {
+      try {
+        const res = await api.get(`/exams/${examId}`)
+        const ex = res.data
+        setIsEditMode(true)
+        if (ex.title) setTitle(ex.title)
+        if (ex.section) setSection(ex.section)
+        if (ex.code) setCode(ex.code)
+
+        if (ex.semester) {
+          setSemester(ex.semester)
+          // Fetch subjects catalog for the exam's semester
+          setLoadingSubjects(true)
+          setSubjectsError(null)
+          try {
+            const sRes = await api.get(`/subjects?semester=${ex.semester}`)
+            const list = Array.isArray(sRes.data) ? sRes.data : []
+            setSubjectsList(list)
+            if (ex.subject) setSubject(ex.subject)
+          } catch (sErr) {
+            console.warn('Failed to load subjects for exam semester:', sErr)
+            setSubjectsError('Failed to load subjects catalog for this semester.')
+            if (ex.subject) setSubject(ex.subject)
+          } finally {
+            setLoadingSubjects(false)
+          }
+        } else if (ex.subject) {
+          setSubject(ex.subject)
+        }
+
+        if (Array.isArray(ex.questions) && ex.questions.length > 0) {
+          setQuestions(
+            ex.questions.map((q, idx) => ({
+              number: q.question_number || idx + 1,
+              text: q.question_text || '',
+              max_marks: q.max_marks || 5.0,
+              model_answer: q.model_answer || '',
+              concepts: parseRubricConcepts(q.rubric),
+              imageFile: null,
+              imagePreview: null,
+              imageUrl: q.image_url || null,
+              ocrLoading: false,
+              ocrConfidence: null
+            }))
+          )
+        }
+      } catch (err) {
+        console.error('Failed to load exam for editing:', err)
+        toast.error('Failed to load existing exam details.')
+      }
+    }
+
+    loadExamForEditing()
+  }, [examId])
+
+  // 2. Fetch subjects whenever semester changes (create mode or manual change)
+  const fetchSubjectsForSemester = async (semNum) => {
+    if (!semNum) {
+      setSubjectsList([])
+      setLoadingSubjects(false)
+      setSubjectsError(null)
+      return
+    }
+
+    setLoadingSubjects(true)
+    setSubjectsError(null)
+    try {
+      const res = await api.get(`/subjects?semester=${semNum}`)
+      const list = Array.isArray(res.data) ? res.data : []
+      setSubjectsList(list)
+    } catch (err) {
+      console.warn('Could not load subjects for semester:', err)
+      setSubjectsError(`Unable to load subjects for Semester ${semNum}. Check network or retry.`)
+      setSubjectsList([])
+    } finally {
+      setLoadingSubjects(false)
+    }
+  }
+
+  // Handle changing semester: automatically clears previously selected subject and code
+  const handleSemesterChange = (newSemVal) => {
+    const semNum = newSemVal ? Number(newSemVal) : ''
+    setSemester(semNum)
+    // Clear previously selected subject and course code
+    setSubject('')
+    setCode('')
+    setSubjectsError(null)
+
+    if (semNum) {
+      fetchSubjectsForSemester(semNum)
+    } else {
+      setSubjectsList([])
+      setLoadingSubjects(false)
+    }
+  }
+
+  // Handle selecting a subject from the catalog
+  const handleSelectSubject = (val) => {
+    setSubject(val)
+    const match = subjectsList.find((s) => s.name === val)
+    if (match) {
+      if (match.code) setCode(match.code)
+      if (!title.trim() || title.endsWith(' Midterm') || title.endsWith(' Final Exam')) {
+        setTitle(`${match.name} Midterm`)
+      }
+    }
+  }
 
   const addQuestion = () => {
     setQuestions([
@@ -116,18 +210,16 @@ export const ExamSetupPage = () => {
     setQuestions(updated)
   }
 
-  // --- Issue 3: Image Upload & Camera Capture Logic ---
+  // Image Upload & Camera Capture Logic
   const handleImageFileChange = (qIndex, file) => {
     if (!file) return
 
-    // Allowed types: JPEG, PNG, WebP
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
       toast.error(`Unsupported file type (${file.type || 'unknown'}). Please select a JPEG, PNG, or WebP image.`)
       return
     }
 
-    // Size limit: 5MB
     if (file.size > 5 * 1024 * 1024) {
       toast.error(`Image is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed size is 5MB.`)
       return
@@ -202,18 +294,26 @@ export const ExamSetupPage = () => {
     }
   }
 
-  // --- Issue 1: Robust Submission Handling ---
+  // Submission Handling
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (isSubmitting) return
 
-    // Client-side validation
-    if (!title.trim()) {
-      toast.error('Please enter an exam title.')
+    // Client-side academic validation
+    if (!semester || Number(semester) < 1 || Number(semester) > 8) {
+      toast.error('Please select an academic semester first.')
+      return
+    }
+    if (!section || ![1, 2, 3, 4].includes(Number(section))) {
+      toast.error('Please select a valid section (1, 2, 3, or 4).')
       return
     }
     if (!subject.trim()) {
-      toast.error('Please enter a subject.')
+      toast.error(`Please select a subject from the Semester ${semester} catalog.`)
+      return
+    }
+    if (!title.trim()) {
+      toast.error('Please enter an exam title.')
       return
     }
     if (questions.length === 0) {
@@ -237,21 +337,26 @@ export const ExamSetupPage = () => {
       }
     }
 
-    if (!semester || semester < 1 || semester > 8) {
-      toast.error('Please select a valid Semester between 1 and 8.')
-      return
-    }
-    if (!section || ![1, 2, 3, 4].includes(Number(section))) {
-      toast.error('Please select a valid Section (1, 2, 3, or 4).')
-      return
-    }
-    if (!subject.trim()) {
-      toast.error('Please specify a Subject for this exam.')
-      return
-    }
-
     setIsSubmitting(true)
     try {
+      const semInt = parseInt(semester, 10)
+      const secInt = parseInt(section, 10)
+
+      if (isEditMode && examId) {
+        // Update existing exam class scope & metadata
+        await api.put(`/exams/${examId}`, {
+          title: title.trim(),
+          subject: subject.trim(),
+          code: code.trim() || undefined,
+          semester: semInt,
+          section: secInt
+        })
+        toast.success('Exam details updated successfully!')
+        navigate(`/teacher/upload?exam_id=${examId}`)
+        return
+      }
+
+      // Create new exam
       const mappedQuestions = questions.map((q, idx) => ({
         question_number: idx + 1,
         number: idx + 1,
@@ -267,9 +372,9 @@ export const ExamSetupPage = () => {
       const payload = {
         title: title.trim(),
         subject: subject.trim(),
-        code: code.trim(),
-        semester: parseInt(semester, 10),
-        section: parseInt(section, 10),
+        code: code.trim() || undefined,
+        semester: semInt,
+        section: secInt,
         questions: mappedQuestions
       }
 
@@ -293,12 +398,11 @@ export const ExamSetupPage = () => {
         }
       }
 
-      // Navigate to upload center tied to this newly created exam ID
       navigate(`/teacher/upload?exam_id=${createdExamId || 1}`)
     } catch (err) {
-      console.error('Exam creation error:', err)
+      console.error('Exam saving error:', err)
       const detail = err.response?.data?.detail
-      let errorMsg = 'Failed to create exam.'
+      let errorMsg = 'Failed to save exam.'
       if (typeof detail === 'string') {
         errorMsg = detail
       } else if (Array.isArray(detail)) {
@@ -312,41 +416,53 @@ export const ExamSetupPage = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+      {/* Header Banner */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm border-l-4 border-l-[#FF5B35]">
-        <h2 className="text-3xl font-bold font-display text-slate-900">Create New Exam</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Define questions, reference answers, and rubric concepts. You can type text or attach question images/photos.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold font-display text-slate-900">
+              {isEditMode ? 'Edit Examination' : 'Create New Exam'}
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Select target academic semester and subject, define questions, model answers, and rubric concepts.
+            </p>
+          </div>
+          {isEditMode && (
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5">
+              <Edit3 className="w-3.5 h-3.5" />
+              Editing Exam #{examId}
+            </span>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Step 1: Academic Class & Course Scoping */}
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#FF5B35] uppercase tracking-wider mb-1">
-              <Layers className="w-4 h-4" />
-              <span>Step 1: Academic Scoping</span>
-            </div>
-            <h3 className="text-xl font-bold font-display text-slate-900">
-              Class Structure & Subject Catalog
+        {/* Academic Class Structure & Dependent Subject Selection */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+          <div>
+            <h3 className="text-xl font-bold font-display text-slate-900 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-[#FF5B35]" />
+              Academic Class & Subject
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Every exam must be scoped to an academic semester and section. Once student submissions exist, this class association is locked.
+              Select the semester first. Available subjects will automatically load from the verified curriculum for that semester.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {/* Semester Selector */}
+            {/* Step 1: Semester Selector */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                <span>Semester</span>
-                <span className="text-[10px] text-slate-400 font-normal">Range: 1–8</span>
+              <label htmlFor="exam-semester-select" className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>1. Academic Semester</span>
+                <span className="text-[10px] text-slate-400 font-normal">Sem 1–8</span>
               </label>
               <select
+                id="exam-semester-select"
                 value={semester}
-                onChange={(e) => setSemester(Number(e.target.value))}
+                onChange={(e) => handleSemesterChange(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:bg-white focus:border-[#FF5B35] focus:ring-1 focus:ring-[#FF5B35] focus:outline-none transition-all cursor-pointer"
               >
+                <option value="">-- Select Semester --</option>
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                   <option key={s} value={s}>
                     Semester {s}
@@ -355,10 +471,10 @@ export const ExamSetupPage = () => {
               </select>
             </div>
 
-            {/* Section Selector (Buttons) */}
+            {/* Step 2: Target Section Selector */}
             <div className="lg:col-span-1">
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Target Section
+                2. Target Section
               </label>
               <div className="grid grid-cols-4 gap-1.5">
                 {[1, 2, 3, 4].map((sec) => {
@@ -381,63 +497,101 @@ export const ExamSetupPage = () => {
               </div>
             </div>
 
-            {/* Subject Selector from Catalog */}
+            {/* Step 3: Dependent Subject Selector from Backend Catalog */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+              <label htmlFor="exam-subject-select" className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <BookOpen className="w-3.5 h-3.5 text-[#FF5B35]" />
-                  Subject Catalog
+                  3. Subject Catalog
                 </span>
-                <span className="text-[10px] text-slate-400 font-normal">Standardized Curriculum</span>
+                <span className="text-[10px] text-slate-400 font-normal">
+                  {!semester ? 'Select semester first' : loadingSubjects ? 'Fetching...' : `${subjectsList.length} subjects available`}
+                </span>
               </label>
               <select
-                value={isCustomSubject ? '__custom__' : subject}
+                id="exam-subject-select"
+                disabled={!semester || loadingSubjects}
+                value={subject}
                 onChange={(e) => handleSelectSubject(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:bg-white focus:border-[#FF5B35] focus:ring-1 focus:ring-[#FF5B35] focus:outline-none transition-all cursor-pointer"
+                className={`w-full border rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all ${
+                  !semester || loadingSubjects
+                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                    : 'bg-slate-50 text-slate-800 border-slate-200 focus:bg-white focus:border-[#FF5B35] focus:ring-1 focus:ring-[#FF5B35] focus:outline-none cursor-pointer'
+                }`}
               >
-                {subjectsList.map((s) => (
-                  <option key={s.id || s.name} value={s.name}>
-                    {s.name} {s.code ? `(${s.code})` : ''} {s.default_semester ? `• Sem ${s.default_semester}` : ''}
-                  </option>
-                ))}
-                <option value="__custom__">+ Other / Custom Subject...</option>
+                {!semester ? (
+                  <option value="">-- Please select a semester first --</option>
+                ) : loadingSubjects ? (
+                  <option value="">Loading subjects for Semester {semester}...</option>
+                ) : subjectsList.length === 0 ? (
+                  <option value="">No subjects configured for Semester {semester}</option>
+                ) : (
+                  <>
+                    <option value="">-- Select Subject from Semester {semester} Catalog --</option>
+                    {subjectsList.map((s) => (
+                      <option key={s.id || s.name} value={s.name}>
+                        {s.name} {s.code ? `(${s.code})` : ''}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
+
+              {/* Subject Loading Indicator */}
+              {loadingSubjects && (
+                <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 animate-pulse">
+                  <RotateCw className="w-3 h-3 animate-spin text-[#FF5B35]" />
+                  Fetching subjects for Semester {semester}...
+                </p>
+              )}
+
+              {/* Recoverable Error State */}
+              {subjectsError && (
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                    <span>{subjectsError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fetchSubjectsForSemester(semester)}
+                    className="text-xs font-bold text-red-600 hover:text-red-800 underline ml-2 cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {/* Empty Catalog Notice for Semesters 6, 7, 8 */}
+              {semester && !loadingSubjects && !subjectsError && subjectsList.length === 0 && (
+                <div className="mt-2 p-3 bg-amber-50/80 border border-amber-200 rounded-xl flex items-start gap-2 text-xs text-amber-800">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Notice:</span> Subjects have not yet been configured for Semester {semester}.
+                    Please choose Semesters 1 through 5, or contact the academic curriculum coordinator.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Custom Subject Name Input if selected */}
-          {isCustomSubject && (
-            <div className="p-4 rounded-2xl bg-orange-50/60 border border-orange-200">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Custom Subject / Course Name
-              </label>
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="Enter subject name (e.g. Distributed Computing)"
-                required
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:border-[#FF5B35] focus:ring-1 focus:ring-[#FF5B35] focus:outline-none"
-              />
-            </div>
-          )}
 
           {/* Exam Code & Title */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-2">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Course Code</label>
+              <label htmlFor="exam-course-code" className="block text-xs font-bold text-slate-700 mb-1">Course Code</label>
               <input
+                id="exam-course-code"
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                required
-                placeholder="e.g. CS-402"
+                placeholder="e.g. CS302"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:bg-white focus:border-[#FF5B35] focus:ring-1 focus:ring-[#FF5B35] focus:outline-none transition-colors"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">Exam Title</label>
+              <label htmlFor="exam-title-input" className="block text-xs font-bold text-slate-700 mb-1">Exam Title</label>
               <input
+                id="exam-title-input"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -448,17 +602,21 @@ export const ExamSetupPage = () => {
             </div>
           </div>
 
-          {/* Summary Pill */}
+          {/* Scoping Summary Badge */}
           <div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
             <span className="font-bold text-[#0F172A]">Class Scoping Badge Preview:</span>
-            <span className="px-2.5 py-0.5 rounded-full font-bold bg-[#FFF0EB] text-[#FF5B35] border border-[#FFD4C8]">
-              Semester {semester}
+            <span className={`px-2.5 py-0.5 rounded-full font-bold border ${
+              semester
+                ? 'bg-[#FFF0EB] text-[#FF5B35] border-[#FFD4C8]'
+                : 'bg-slate-200 text-slate-500 border-slate-300'
+            }`}>
+              {semester ? `Semester ${semester}` : 'Semester Not Selected'}
             </span>
             <span className="px-2.5 py-0.5 rounded-full font-bold bg-[#FFF0EB] text-[#FF5B35] border border-[#FFD4C8]">
               Section {section}
             </span>
             <span className="px-2.5 py-0.5 rounded-full font-bold bg-slate-200 text-slate-800">
-              {subject || 'No Subject Selected'} ({code || 'No Code'})
+              {subject || 'No Subject Selected'} {code ? `(${code})` : ''}
             </span>
           </div>
         </div>
@@ -489,59 +647,112 @@ export const ExamSetupPage = () => {
             <button
               type="button"
               onClick={addQuestion}
-              className="px-4 py-2 rounded-xl bg-orange-50 text-[#FF5B35] border border-orange-200/80 font-bold text-xs flex items-center gap-2 hover:bg-orange-100 transition-all cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#FF5B35] font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              Add Question
+              <Plus className="w-4 h-4" /> Add Question
             </button>
           </div>
 
           {questions.map((q, idx) => (
-            <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-5 relative">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-50 text-[#FF5B35] border border-orange-200/80">
-                    Question {idx + 1}
-                  </span>
-                  {q.imageFile && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200">
-                      Image Attached
-                    </span>
-                  )}
-                  {q.ocrConfidence !== null && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      OCR: {(q.ocrConfidence * 100).toFixed(0)}%
-                    </span>
-                  )}
-                </div>
+            <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <span className="font-extrabold text-sm text-[#FF5B35]">Question {idx + 1}</span>
                 {questions.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeQuestion(idx)}
-                    className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer p-1"
-                    title="Remove question"
+                    className="text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
-              {/* Question Text & Max Marks */}
+              {/* Question Image Attachment & Camera Option */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">Question Diagram / Photo (Optional)</label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    ref={(el) => (fileInputRefs.current[idx] = el)}
+                    onChange={(e) => handleImageFileChange(idx, e.target.files[0])}
+                    className="hidden"
+                  />
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    ref={(el) => (cameraInputRefs.current[idx] = el)}
+                    onChange={(e) => handleImageFileChange(idx, e.target.files[0])}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRefs.current[idx]?.click()}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-[#FF5B35] bg-slate-50 hover:bg-white text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Image className="w-3.5 h-3.5 text-[#FF5B35]" />
+                    Upload Image
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRefs.current[idx]?.click()}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-[#FF5B35] bg-slate-50 hover:bg-white text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-blue-600" />
+                    Take Photo
+                  </button>
+
+                  {q.imageFile && (
+                    <button
+                      type="button"
+                      disabled={q.ocrLoading}
+                      onClick={() => handleExtractOcr(idx)}
+                      className="px-3.5 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#FF5B35] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {q.ocrLoading ? 'Extracting via OCR...' : 'Auto-Extract Text (OCR)'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Preview Thumbnail */}
+                {q.imagePreview && (
+                  <div className="relative inline-block mt-2 border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+                    <img src={q.imagePreview} alt="Question preview" className="h-28 object-contain bg-slate-50" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(idx)}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-slate-900/70 text-white hover:bg-rose-600 transition-colors cursor-pointer"
+                      title="Remove image"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    {q.ocrConfidence !== null && (
+                      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/60 text-white">
+                        OCR: {(q.ocrConfidence * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Question Text */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-slate-700">Question Content</label>
-                    <span className="text-[11px] text-slate-400">Type text or use image options below</span>
-                  </div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Question Text</label>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={q.text}
                     onChange={(e) => {
                       const updated = [...questions]
                       updated[idx].text = e.target.value
                       setQuestions(updated)
                     }}
-                    placeholder="Enter question text or statement..."
+                    placeholder="Enter the question text or problem statement..."
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:bg-white focus:border-[#FF5B35] focus:ring-1 focus:ring-[#FF5B35] focus:outline-none transition-colors"
                   />
                 </div>
@@ -554,111 +765,21 @@ export const ExamSetupPage = () => {
                     value={q.max_marks}
                     onChange={(e) => {
                       const updated = [...questions]
-                      updated[idx].max_marks = parseFloat(e.target.value) || 5.0
+                      updated[idx].max_marks = parseFloat(e.target.value) || 0
                       setQuestions(updated)
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:bg-white focus:border-[#FF5B35] focus:ring-1 focus:ring-[#FF5B35] focus:outline-none transition-colors"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-800 focus:bg-white focus:border-[#FF5B35] focus:ring-1 focus:ring-[#FF5B35] focus:outline-none transition-colors"
                   />
                 </div>
               </div>
 
-              {/* Issue 3: Image Upload & Mobile Camera Capture Controls */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Image className="w-3.5 h-3.5 text-[#FF5B35]" />
-                    Question Image / Diagram / Camera Capture
-                  </span>
-
-                  {/* Hidden file inputs */}
-                  <input
-                    type="file"
-                    ref={(el) => (fileInputRefs.current[idx] = el)}
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) => handleImageFileChange(idx, e.target.files[0])}
-                  />
-                  <input
-                    type="file"
-                    ref={(el) => (cameraInputRefs.current[idx] = el)}
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={(e) => handleImageFileChange(idx, e.target.files[0])}
-                  />
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRefs.current[idx]?.click()}
-                      className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-[#FF5B35] hover:border-[#FF5B35] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                    >
-                      <Image className="w-3.5 h-3.5" />
-                      Upload Image
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => cameraInputRefs.current[idx]?.click()}
-                      className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-[#FF5B35] hover:border-[#FF5B35] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                    >
-                      <Camera className="w-3.5 h-3.5" />
-                      Take Photo
-                    </button>
-                  </div>
-                </div>
-
-                {/* Image Preview & OCR Extract Action */}
-                {q.imagePreview && (
-                  <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={q.imagePreview}
-                        alt={`Question ${idx + 1}`}
-                        className="w-16 h-16 object-cover rounded-lg border border-slate-200 shadow-xs"
-                      />
-                      <div>
-                        <p className="text-xs font-bold text-slate-800 truncate max-w-xs">{q.imageFile?.name}</p>
-                        <p className="text-[11px] text-slate-500">{(q.imageFile?.size / 1024).toFixed(1)} KB • {q.imageFile?.type}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleExtractOcr(idx)}
-                        disabled={q.ocrLoading}
-                        className="px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-[#FF5B35] border border-orange-200 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {q.ocrLoading ? (
-                          <>
-                            <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                            Extracting...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5" />
-                            Extract Text with OCR
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                        title="Remove image"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Model / Reference Answer */}
+              {/* Reference Answer */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Model / Reference Answer</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
+                  Model / Reference Answer (Ground Truth for AI Grading)
+                </label>
                 <textarea
                   rows={3}
                   value={q.model_answer}
@@ -710,20 +831,21 @@ export const ExamSetupPage = () => {
           ))}
         </div>
 
+        {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="w-full py-4 rounded-xl bg-[#FF5B35] hover:bg-[#e04f2d] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          disabled={isSubmitting || !semester || !subject.trim()}
+          className="w-full py-4 rounded-xl bg-[#FF5B35] hover:bg-[#e04f2d] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <>
               <RotateCw className="w-5 h-5 animate-spin" />
-              Saving Exam & Questions...
+              {isEditMode ? 'Updating Exam Details...' : 'Saving Exam & Questions...'}
             </>
           ) : (
             <>
               <Save className="w-5 h-5" />
-              Save Exam & Proceed to Sheet Upload
+              {isEditMode ? 'Update Exam Details' : 'Save Exam & Proceed to Sheet Upload'}
             </>
           )}
         </button>

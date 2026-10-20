@@ -45,7 +45,7 @@ def test_teacher_exam_creation_with_valid_class(client, teacher_token_headers):
             "title": "Artificial Intelligence Midterm",
             "subject": "Artificial Intelligence",
             "code": "CSE311",
-            "semester": 6,
+            "semester": 5,
             "section": 2,
             "questions": [
                 {
@@ -59,7 +59,7 @@ def test_teacher_exam_creation_with_valid_class(client, teacher_token_headers):
     )
     assert res.status_code == status.HTTP_201_CREATED
     data = res.json()
-    assert data["semester"] == 6
+    assert data["semester"] == 5
     assert data["section"] == 2
     assert data["subject"] == "Artificial Intelligence"
     assert "[CSE311]" in data["title"]

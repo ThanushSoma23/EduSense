@@ -16,6 +16,7 @@ from app.schemas.exam import (
     QuestionCreate, QuestionUpdate, QuestionResponse
 )
 from app.api.deps import get_current_user, get_current_teacher, get_current_student
+from app.api.v1.subjects import validate_exam_semester_and_subject
 
 router = APIRouter(prefix="/exams", tags=["Examination Management"])
 
@@ -47,6 +48,8 @@ def create_exam(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Subject is required."
         )
+
+    validate_exam_semester_and_subject(db, exam_in.semester, exam_in.subject)
 
     title = exam_in.title
     if exam_in.code and not title.startswith(f"[{exam_in.code}]"):
@@ -248,16 +251,25 @@ def update_exam(
                 detail="Cannot modify semester, section, or subject: student submissions have already been received for this exam."
             )
 
+    target_sem = exam_in.semester if exam_in.semester is not None else exam.semester
+    target_subj = exam_in.subject.strip() if exam_in.subject is not None else exam.subject
+
     if exam_in.semester is not None:
         if not (settings.MIN_SEMESTER <= exam_in.semester <= settings.MAX_SEMESTER):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Semester must be between {settings.MIN_SEMESTER} and {settings.MAX_SEMESTER}."
             )
-        exam.semester = exam_in.semester
     if exam_in.section not in (None, ...):
         if exam_in.section not in (1, 2, 3, 4):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Section must be 1, 2, 3, or 4.")
+
+    if (exam_in.semester is not None or exam_in.subject is not None) and target_sem is not None and target_subj is not None:
+        validate_exam_semester_and_subject(db, target_sem, target_subj)
+
+    if exam_in.semester is not None:
+        exam.semester = exam_in.semester
+    if exam_in.section not in (None, ...):
         exam.section = exam_in.section
     if exam_in.subject is not None:
         exam.subject = exam_in.subject.strip()

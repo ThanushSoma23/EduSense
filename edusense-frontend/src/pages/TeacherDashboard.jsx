@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FileText, FileUp, CheckCircle, Clock, Plus, ArrowRight, Eye, Sparkles } from 'lucide-react'
+import { FileText, FileUp, CheckCircle, Clock, Plus, ArrowRight, Eye, Sparkles, Edit3 } from 'lucide-react'
 import { api } from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -165,6 +165,14 @@ export const TeacherDashboard = () => {
                       </span>
                     </td>
                     <td className="py-4 px-4 text-right space-x-2">
+                      <button
+                        onClick={() => navigate(`/teacher/exam/new?exam_id=${ex.id}`)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-bold text-xs inline-flex items-center gap-1 transition-all cursor-pointer"
+                        title="Edit exam class and details"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-slate-600" />
+                        Edit
+                      </button>
                       <button
                         onClick={() => navigate(`/teacher/upload?exam_id=${ex.id}`)}
                         className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-bold text-xs inline-flex items-center gap-1 transition-all cursor-pointer"
