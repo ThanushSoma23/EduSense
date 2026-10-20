@@ -16,18 +16,19 @@ import zipfile
 from pathlib import Path
 
 # Official EasyOCR release assets hosted on GitHub releases (stable upstream)
+# The expected MD5 checksums match the unzipped .pth weights used by EasyOCR
 MODELS = [
     {
         "filename": "craft_mlt_25k.pth",
         "zip_name": "craft_mlt_25k.zip",
         "url": "https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/craft_mlt_25k.zip",
-        "expected_zip_md5": "2f8227d2def4037cdb3b34389dcf9ec1",
+        "expected_pth_md5": "2f8227d2def4037cdb3b34389dcf9ec1",
     },
     {
         "filename": "english_g2.pth",
         "zip_name": "english_g2.zip",
         "url": "https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/english_g2.zip",
-        "expected_zip_md5": "5864788e1821be9e454ec108d61b887d",
+        "expected_pth_md5": "5864788e1821be9e454ec108d61b887d",
     },
 ]
 
@@ -54,8 +55,13 @@ def provision_models(target_dir: Path | None = None) -> bool:
     for item in MODELS:
         final_pth = target_dir / item["filename"]
         if final_pth.exists() and final_pth.stat().st_size > 1000:
-            print(f"[OK] {item['filename']} already exists ({final_pth.stat().st_size:,} bytes). Skipping download.")
-            continue
+            actual_md5 = compute_md5(final_pth)
+            if actual_md5 == item["expected_pth_md5"]:
+                print(f"[OK] {item['filename']} already exists ({final_pth.stat().st_size:,} bytes, md5={actual_md5}). Skipping download.")
+                continue
+            else:
+                print(f"[WARN] Existing {item['filename']} checksum mismatch ({actual_md5}). Re-downloading...")
+                final_pth.unlink(missing_ok=True)
 
         temp_zip = target_dir / item["zip_name"]
         print(f"Downloading {item['zip_name']} from {item['url']} ...")
@@ -68,16 +74,6 @@ def provision_models(target_dir: Path | None = None) -> bool:
             while chunk := response.read(65536):
                 out_file.write(chunk)
 
-        actual_md5 = compute_md5(temp_zip)
-        if actual_md5 != item["expected_zip_md5"]:
-            temp_zip.unlink(missing_ok=True)
-            raise ValueError(
-                f"Checksum mismatch for {item['zip_name']}!\n"
-                f"Expected: {item['expected_zip_md5']}\n"
-                f"Actual:   {actual_md5}"
-            )
-        print(f"[OK] Checksum verified for {item['zip_name']} ({actual_md5}).")
-
         print(f"Extracting {item['zip_name']} to {target_dir} ...")
         with zipfile.ZipFile(temp_zip, "r") as zip_ref:
             zip_ref.extractall(target_dir)
@@ -86,7 +82,16 @@ def provision_models(target_dir: Path | None = None) -> bool:
 
         if not final_pth.exists():
             raise FileNotFoundError(f"Expected extracted file {final_pth} not found after extraction!")
-        print(f"[OK] Extracted {item['filename']} successfully ({final_pth.stat().st_size:,} bytes).")
+
+        actual_md5 = compute_md5(final_pth)
+        if actual_md5 != item["expected_pth_md5"]:
+            final_pth.unlink(missing_ok=True)
+            raise ValueError(
+                f"Checksum mismatch for extracted {item['filename']}!\n"
+                f"Expected: {item['expected_pth_md5']}\n"
+                f"Actual:   {actual_md5}"
+            )
+        print(f"[OK] Extracted and verified {item['filename']} successfully ({final_pth.stat().st_size:,} bytes, md5={actual_md5}).")
 
     print("\nAll required EasyOCR model weights provisioned and verified.")
     return True
