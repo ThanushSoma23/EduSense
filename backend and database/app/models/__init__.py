@@ -4,6 +4,8 @@ from app.models.submission import AnswerSheet, StudentAnswer
 from app.models.evaluation import Evaluation
 from app.models.final_mark import FinalMark
 from app.models.audit_log import AuditLog
+from app.models.enrollment import ExamEnrollment
+from app.models.subject import Subject
 
 __all__ = [
     "User",
@@ -15,4 +17,6 @@ __all__ = [
     "Evaluation",
     "FinalMark",
     "AuditLog",
+    "ExamEnrollment",
+    "Subject",
 ]

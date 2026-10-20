@@ -9,6 +9,8 @@ def test_create_and_read_submission(client, teacher_token_headers, student_token
         json={
             "title": "Operating Systems Midterm",
             "subject": "CS",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {
                     "question_number": 1,
@@ -69,7 +71,7 @@ def test_student_isolation_forbidden(client, teacher_token_headers, student_toke
     exam_res = client.post(
         "/api/v1/exams",
         headers=teacher_token_headers,
-        json={"title": "Networking", "subject": "CS"}
+        json={"title": "Networking", "subject": "CS", "semester": 6, "section": 1}
     )
     exam_id = exam_res.json()["id"]
 
@@ -96,6 +98,8 @@ def test_transcribe_submission_workflow(client, teacher_token_headers, student_t
         json={
             "title": "Operating Systems Final",
             "subject": "CS",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {
                     "question_number": 1,

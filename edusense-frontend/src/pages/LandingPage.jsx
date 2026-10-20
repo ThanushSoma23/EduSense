@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   GraduationCap, Shield, User, ArrowRight, Sparkles, CheckCircle2,
-  Building2, Eye, EyeOff, Lock, BarChart3, Clock, CheckCircle, Info
+  Building2, Eye, EyeOff, Lock, BarChart3, Clock, CheckCircle, Info,
+  Brain, Scan, FileText, Award, Layers, ShieldCheck, ChevronRight
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
@@ -34,6 +35,7 @@ export const LandingPage = () => {
   const [rollNumber, setRollNumber] = useState('')
   const [department, setDepartment] = useState('Computer Science')
   const [semester, setSemester] = useState(6)
+  const [section, setSection] = useState(1)
 
   // Teacher-specific fields
   const [accessCode, setAccessCode] = useState('TEACH2026')
@@ -43,6 +45,42 @@ export const LandingPage = () => {
 
   useEffect(() => {
     fetchColleges()
+
+    const handleAuthEvent = (e) => {
+      if (e.detail?.mode) {
+        setAuthMode(e.detail.mode)
+      }
+      setErrorMessage('')
+      setShowAuthModal(true)
+    }
+
+    const handleHash = () => {
+      const hash = window.location.hash
+      if (hash === '#login') {
+        setAuthMode('login')
+        setErrorMessage('')
+        setShowAuthModal(true)
+      } else if (hash === '#register') {
+        setAuthMode('register')
+        setErrorMessage('')
+        setShowAuthModal(true)
+      } else if (hash) {
+        const id = hash.replace('#', '')
+        const el = document.getElementById(id)
+        if (el) {
+          setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 100)
+        }
+      }
+    }
+
+    window.addEventListener('edusense-auth-modal', handleAuthEvent)
+    window.addEventListener('hashchange', handleHash)
+    handleHash()
+
+    return () => {
+      window.removeEventListener('edusense-auth-modal', handleAuthEvent)
+      window.removeEventListener('hashchange', handleHash)
+    }
   }, [])
 
   const fetchColleges = async () => {
@@ -98,7 +136,8 @@ export const LandingPage = () => {
             roll_number: rollNumber,
             college_id: collegeId,
             department,
-            semester: parseInt(semester),
+            semester: parseInt(semester, 10),
+            section: parseInt(section, 10),
             password
           }
           const res = await api.post('/auth/register/student', payload)
@@ -135,8 +174,8 @@ export const LandingPage = () => {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-69px)] bg-[#FAF8F5] flex flex-col justify-center px-6 lg:px-12 py-12 overflow-hidden">
-      <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+    <div className="relative min-h-[calc(100vh-69px)] bg-[#FAF8F5] flex flex-col justify-between overflow-x-hidden">
+      <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center px-6 lg:px-12 py-12 lg:py-16">
         
         {/* Left Column: Hero Copy matching Kavya's screenshot exactly */}
         <div className="lg:col-span-6 space-y-6 text-left">
@@ -171,9 +210,12 @@ export const LandingPage = () => {
             </button>
 
             <button
+              type="button"
               onClick={() => {
-                setAuthMode('login')
-                setShowAuthModal(true)
+                const el = document.getElementById('features')
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth' })
+                }
               }}
               className="px-6 py-3.5 rounded-xl bg-white border border-[#CBD5E1] text-[#0F172A] hover:bg-slate-50 font-bold text-sm shadow-sm cursor-pointer transition-all"
             >
@@ -268,8 +310,305 @@ export const LandingPage = () => {
             </div>
           </motion.div>
         </div>
-
       </div>
+
+      {/* --- Section 1: Features (#features) --- */}
+      <section id="features" className="w-full py-16 lg:py-24 border-t border-[#EAE6DF] bg-white/60">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFF0EB] border border-[#FFD4C8] text-[#FF5B35] text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" />
+              INTELLIGENT PIPELINE ARCHITECTURE
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0F172A] tracking-tight">
+              Engineered for Academic Precision
+            </h2>
+            <p className="text-sm sm:text-base text-[#475569] leading-relaxed">
+              A balanced hybrid evaluation pipeline uniting cutting-edge computer vision with teacher sovereignty.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="bg-white rounded-3xl p-8 border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all space-y-4 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#FFF0EB] text-[#FF5B35] flex items-center justify-center font-bold">
+                  <Scan className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-extrabold text-[#0F172A]">
+                  Handwriting OCR & Preprocessing
+                </h3>
+                <p className="text-xs sm:text-sm text-[#475569] leading-relaxed">
+                  Automated CLAHE contrast enhancement, deskewing, and segmentation with EasyOCR and TrOCR backends.
+                </p>
+              </div>
+              <ul className="space-y-2 text-xs font-semibold text-[#64748B] pt-4 border-t border-[#F1F5F9]">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#FF5B35]" />
+                  Adaptive contrast and binarization
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#FF5B35]" />
+                  Question & answer segmentation
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#FF5B35]" />
+                  Automatic low-confidence review flags
+                </li>
+              </ul>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-white rounded-3xl p-8 border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all space-y-4 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center font-bold">
+                  <Brain className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-extrabold text-[#0F172A]">
+                  Semantic Evaluation & Rubrics
+                </h3>
+                <p className="text-xs sm:text-sm text-[#475569] leading-relaxed">
+                  Deep semantic similarity scoring and key concept extraction mapped directly to teacher rubrics.
+                </p>
+              </div>
+              <ul className="space-y-2 text-xs font-semibold text-[#64748B] pt-4 border-t border-[#F1F5F9]">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#4F46E5]" />
+                  Formula & diagram support
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#4F46E5]" />
+                  Step-by-step concept scoring
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#4F46E5]" />
+                  Strictly advisory recommendations
+                </li>
+              </ul>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-white rounded-3xl p-8 border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all space-y-4 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-extrabold text-[#0F172A]">
+                  Teacher Sovereign Decision Point
+                </h3>
+                <p className="text-xs sm:text-sm text-[#475569] leading-relaxed">
+                  AI suggestions never finalize grades. Educators retain full authority to override, adjust marks, and provide feedback.
+                </p>
+              </div>
+              <ul className="space-y-2 text-xs font-semibold text-[#64748B] pt-4 border-t border-[#F1F5F9]">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Split-screen verification workspace
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Durable audit trail for overrides
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  One-click verified publication
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Section 2: How It Works (#how-it-works) --- */}
+      <section id="how-it-works" className="w-full py-16 lg:py-24 border-t border-[#EAE6DF] bg-[#FAF8F5]">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#EEF2FF] border border-[#E0E7FF] text-[#4F46E5] text-xs font-bold uppercase tracking-wider">
+              <Layers className="w-3.5 h-3.5" />
+              STREAMLINED WORKFLOW
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0F172A] tracking-tight">
+              How EduSense Works
+            </h2>
+            <p className="text-sm sm:text-base text-[#475569] leading-relaxed">
+              From rubric setup to student doubt resolution in four transparent, human-in-the-loop steps.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Step 1 */}
+            <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0] shadow-sm space-y-3 relative text-left">
+              <span className="w-8 h-8 rounded-xl bg-[#FFF0EB] text-[#FF5B35] font-extrabold text-sm flex items-center justify-center">
+                1
+              </span>
+              <h4 className="font-extrabold text-base text-[#0F172A]">Setup Exam & Rubric</h4>
+              <p className="text-xs text-[#475569] leading-relaxed">
+                Define questions, maximum marks, key concept criteria, and optional reference solutions or question photos.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0] shadow-sm space-y-3 relative text-left">
+              <span className="w-8 h-8 rounded-xl bg-[#EEF2FF] text-[#4F46E5] font-extrabold text-sm flex items-center justify-center">
+                2
+              </span>
+              <h4 className="font-extrabold text-base text-[#0F172A]">Upload Answer Sheets</h4>
+              <p className="text-xs text-[#475569] leading-relaxed">
+                Batch upload student handwritten copies with instant resolution, contrast, and orientation pre-validation.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0] shadow-sm space-y-3 relative text-left">
+              <span className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 font-extrabold text-sm flex items-center justify-center">
+                3
+              </span>
+              <h4 className="font-extrabold text-base text-[#0F172A]">AI Evaluates</h4>
+              <p className="text-xs text-[#475569] leading-relaxed">
+                AIML pipeline segments responses, computes concept coverage against rubrics, and suggests marks.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0] shadow-sm space-y-3 relative text-left">
+              <span className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 font-extrabold text-sm flex items-center justify-center">
+                4
+              </span>
+              <h4 className="font-extrabold text-base text-[#0F172A]">Teacher Approves & Publishes</h4>
+              <p className="text-xs text-[#475569] leading-relaxed">
+                Educators inspect scores, override where necessary, and publish official grades with instant student access.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Section 3: For Teachers & Students (#for-teachers-students) --- */}
+      <section id="for-teachers-students" className="w-full py-16 lg:py-24 border-t border-[#EAE6DF] bg-white/70">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFF0EB] border border-[#FFD4C8] text-[#FF5B35] text-xs font-bold uppercase tracking-wider">
+              <User className="w-3.5 h-3.5" />
+              TAILORED EXPERIENCES
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0F172A] tracking-tight">
+              Built for Teachers. Designed for Students.
+            </h2>
+            <p className="text-sm sm:text-base text-[#475569] leading-relaxed">
+              Bridging the gap between efficient evaluation and personalized student feedback.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* For Teachers Card */}
+            <div className="bg-[#FAF8F5] rounded-3xl p-8 border border-[#E2E8F0] shadow-sm space-y-6 flex flex-col justify-between text-left">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#FF5B35] text-white flex items-center justify-center font-bold">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-extrabold text-[#0F172A]">For Educators</h3>
+                    <p className="text-xs text-[#64748B]">Grade faster while keeping 100% human oversight</p>
+                  </div>
+                </div>
+                <ul className="space-y-3 text-xs sm:text-sm text-[#475569] pt-2">
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#FF5B35] shrink-0 mt-0.5" />
+                    <span><strong>Cut evaluation turnaround time by 70%</strong> with automatic text extraction and concept alignment.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#FF5B35] shrink-0 mt-0.5" />
+                    <span><strong>Eliminate repetitive rubric calculation</strong> across large batches of student exam scripts.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#FF5B35] shrink-0 mt-0.5" />
+                    <span><strong>Sovereign control:</strong> Every mark is strictly advisory until you explicitly review and approve.</span>
+                  </li>
+                </ul>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRole('teacher')
+                  setAuthMode('register')
+                  setShowAuthModal(true)
+                }}
+                className="w-full py-3.5 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                Join as Teacher <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* For Students Card */}
+            <div className="bg-[#FAF8F5] rounded-3xl p-8 border border-[#E2E8F0] shadow-sm space-y-6 flex flex-col justify-between text-left">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#4F46E5] text-white flex items-center justify-center font-bold">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-extrabold text-[#0F172A]">For Students</h3>
+                    <p className="text-xs text-[#64748B]">Understand your grades and master concepts</p>
+                  </div>
+                </div>
+                <ul className="space-y-3 text-xs sm:text-sm text-[#475569] pt-2">
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
+                    <span><strong>Transparent concept breakdowns:</strong> See exactly which rubric criteria you fulfilled or missed.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
+                    <span><strong>AI Personal Tutor:</strong> Ask questions and get interactive explanations after your results are published.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
+                    <span><strong>Email updates & secure portal:</strong> Get notified instantly when your instructor approves grades.</span>
+                  </li>
+                </ul>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRole('student')
+                  setAuthMode('login')
+                  setShowAuthModal(true)
+                }}
+                className="w-full py-3.5 rounded-xl bg-[#FF5B35] hover:bg-[#E84E29] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#FF5B35]/25 transition-all"
+              >
+                Access Student Portal <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Footer --- */}
+      <footer className="w-full py-10 border-t border-[#EAE6DF] bg-[#FAF8F5] text-left">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF5B35] to-[#FF8A48] flex items-center justify-center text-white">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-base text-[#0F172A]">EduSense</span>
+                <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-[#FFF0EB] text-[#FF5B35] border border-[#FFD4C8]">
+                  MVP
+                </span>
+              </div>
+              <p className="text-[11px] text-[#64748B]">AI-powered academic assessment with human pedagogical authority.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-6 text-xs font-semibold text-[#64748B]">
+            <a href="#features" className="hover:text-[#FF5B35] transition-colors">Features</a>
+            <a href="#how-it-works" className="hover:text-[#FF5B35] transition-colors">How it works</a>
+            <a href="#for-teachers-students" className="hover:text-[#FF5B35] transition-colors">For teachers & students</a>
+            <span>© 2026 EduSense AI</span>
+          </div>
+        </div>
+      </footer>
 
       {/* Account Creation & Login Modal matching Kavya's mobile screenshot */}
       {showAuthModal && (
@@ -394,17 +733,49 @@ export const LandingPage = () => {
               </div>
 
               {authMode === 'register' && selectedRole === 'student' && (
-                <div>
-                  <label className="block text-xs font-bold text-[#0F172A] mb-1">Roll number</label>
-                  <input
-                    type="text"
-                    required
-                    value={rollNumber}
-                    onChange={(e) => setRollNumber(e.target.value)}
-                    placeholder="CS-2024-001"
-                    className="w-full bg-[#FAF8F5] border border-[#CBD5E1] rounded-xl px-3.5 py-2.5 text-xs text-[#0F172A] focus:border-[#FF5B35] focus:outline-none"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-[#0F172A] mb-1">Roll number</label>
+                    <input
+                      type="text"
+                      required
+                      value={rollNumber}
+                      onChange={(e) => setRollNumber(e.target.value)}
+                      placeholder="CS-2024-001"
+                      className="w-full bg-[#FAF8F5] border border-[#CBD5E1] rounded-xl px-3.5 py-2.5 text-xs text-[#0F172A] focus:border-[#FF5B35] focus:outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-[#0F172A] mb-1">Semester</label>
+                      <select
+                        value={semester}
+                        onChange={(e) => setSemester(Number(e.target.value))}
+                        className="w-full bg-[#FAF8F5] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs text-[#0F172A] focus:border-[#FF5B35] focus:outline-none"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                          <option key={s} value={s}>
+                            Semester {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#0F172A] mb-1">Section</label>
+                      <select
+                        value={section}
+                        onChange={(e) => setSection(Number(e.target.value))}
+                        className="w-full bg-[#FAF8F5] border border-[#CBD5E1] rounded-xl px-3 py-2.5 text-xs text-[#0F172A] focus:border-[#FF5B35] focus:outline-none"
+                      >
+                        {[1, 2, 3, 4].map((sec) => (
+                          <option key={sec} value={sec}>
+                            Section {sec}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
               )}
 
               {authMode === 'register' && selectedRole === 'teacher' && (

@@ -139,6 +139,9 @@ def get_student_final_results(
                 question_number=q.question_number,
                 question_text=q.question_text,
                 max_marks=q.max_marks,
+                model_answer=q.model_answer,
+                rubric=q.rubric,
+                submission_id=submission.id,
                 extracted_text=extracted_text,
                 ai_suggested_marks=ai_suggested,
                 ai_feedback=ai_feedback,
@@ -161,5 +164,49 @@ def get_student_final_results(
         total_max_marks=total_max,
         total_final_marks=total_final if has_final_marks else None,
         is_published=submission.processing_status == "REVIEWED",
+        file_url=f"/api/v1/submissions/{submission.id}/file",
+        file_reference=submission.file_reference,
         questions=question_results
     )
+
+
+@router.get("/student/exam/{exam_id}", response_model=StudentExamResultResponse)
+def get_student_exam_result(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieves authorized exam results for the authenticated student by exam_id.
+    Enforces publication gating and student isolation rules.
+    """
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Exam #{exam_id} not found.")
+
+    if current_user.role == UserRole.STUDENT:
+        submission = db.query(AnswerSheet).filter(
+            AnswerSheet.exam_id == exam.id,
+            AnswerSheet.student_id == current_user.id
+        ).first()
+        if not submission:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No submission found for exam #{exam_id} for your student account."
+            )
+        return get_student_final_results(submission_id=submission.id, db=db, current_user=current_user)
+    elif current_user.role == UserRole.TEACHER:
+        if exam.teacher_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access restricted: Exam was created by another teacher."
+            )
+        submission = db.query(AnswerSheet).filter(AnswerSheet.exam_id == exam.id).first()
+        if not submission:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No submissions found for exam #{exam_id}."
+            )
+        return get_student_final_results(submission_id=submission.id, db=db, current_user=current_user)
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")

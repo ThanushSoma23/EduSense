@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Any
-from pydantic import BaseModel, EmailStr, ConfigDict, model_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, model_validator
 from app.models.user import UserRole
 
 
@@ -27,7 +27,15 @@ class StudentRegisterSchema(BaseModel):
     roll_number: Optional[str] = None
     college_id: Optional[str] = None
     department: Optional[str] = None
-    semester: Optional[int] = None
+    semester: Optional[int] = Field(None, ge=1, le=12)
+    section: Optional[int] = Field(None, ge=1, le=4)
+
+
+class AcademicProfileUpdate(BaseModel):
+    semester: int = Field(..., ge=1, le=12, description="Student academic semester (1-8)")
+    section: int = Field(..., ge=1, le=4, description="Student academic section (1-4)")
+    department: Optional[str] = Field(None, max_length=100)
+    roll_number: Optional[str] = Field(None, max_length=50)
 
 
 class TeacherProvisioningRequest(BaseModel):
@@ -52,6 +60,10 @@ class UserResponse(BaseModel):
     role: UserRole
     account_status: str
     status: Optional[str] = None
+    roll_number: Optional[str] = None
+    department: Optional[str] = None
+    semester: Optional[int] = None
+    section: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

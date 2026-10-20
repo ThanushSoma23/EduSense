@@ -1,6 +1,15 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from pydantic import Field
+
+ROOT_ENV = Path(__file__).resolve().parents[4] / ".env"
+LOCAL_ENV = Path(__file__).resolve().parents[2] / ".env"
+if ROOT_ENV.exists():
+    load_dotenv(ROOT_ENV, override=False)
+if LOCAL_ENV.exists():
+    load_dotenv(LOCAL_ENV, override=False)
 
 class Settings(BaseSettings):
     APP_ENV: str = Field(default_factory=lambda: os.getenv("APP_ENV", "dev"))
@@ -46,7 +55,7 @@ class Settings(BaseSettings):
     ENABLE_TUTOR: bool = Field(default=False)
 
     class Config:
-        env_file = ".env"
+        env_file = [str(ROOT_ENV), str(LOCAL_ENV), ".env"]
         extra = "ignore"
 
 settings = Settings()

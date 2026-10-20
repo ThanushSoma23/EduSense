@@ -33,6 +33,8 @@ def test_complete_edusense_e2e_workflow(
         json={
             "title": "Computer Networks Endterm",
             "subject": "CS-401",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {
                     "question_number": 1,

@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Enum as SQLEnum, DateTime, Index
+from sqlalchemy import Column, Integer, String, Enum as SQLEnum, DateTime, Index, CheckConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -19,6 +19,10 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.STUDENT)
     account_status = Column(String(50), nullable=False, default="active")
+    roll_number = Column(String(50), nullable=True, index=True)
+    department = Column(String(100), nullable=True)
+    semester = Column(Integer, nullable=True, index=True)
+    section = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
@@ -35,4 +39,6 @@ class User(Base):
 
     __table_args__ = (
         Index("idx_users_email_role", "email", "role"),
+        CheckConstraint("section IS NULL OR (section >= 1 AND section <= 4)", name="chk_user_section_1_to_4"),
+        Index("idx_users_class", "semester", "section"),
     )

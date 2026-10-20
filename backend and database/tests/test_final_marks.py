@@ -9,6 +9,8 @@ def setup_exam_and_submission(client, teacher_token_headers, student_token_heade
         json={
             "title": "Database Systems",
             "subject": "CS",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {
                     "question_number": 1,

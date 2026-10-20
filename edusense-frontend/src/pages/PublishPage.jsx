@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle, AlertTriangle, Send, ShieldCheck } from 'lucide-react'
 import { api } from '../lib/api'
 import toast from 'react-hot-toast'
 
 export const PublishPage = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const examId = searchParams.get('exam_id') || '1'
+  const [examInfo, setExamInfo] = useState(null)
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [publishing, setPublishing] = useState(false)
 
-  const examId = 'e1111111-1111-1111-1111-111111111111'
-
   useEffect(() => {
     fetchPublishStatus()
-  }, [])
+    fetchExamInfo()
+  }, [examId])
+
+  const fetchExamInfo = async () => {
+    try {
+      const res = await api.get(`/exams/${examId}`)
+      setExamInfo(res.data)
+    } catch (err) {
+      console.warn('Could not load exam info for publish page:', err)
+    }
+  }
 
   const fetchPublishStatus = async () => {
     try {
@@ -54,7 +65,20 @@ export const PublishPage = () => {
       </div>
 
       <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
-        <h3 className="text-xl font-bold font-display text-slate-900">Audit Summary</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="text-xl font-bold font-display text-slate-900">Audit Summary</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{examInfo?.title || 'Exam Results'}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-[#FFF0EB] text-[#FF5B35] border border-[#FFD4C8]">
+              Sem {examInfo?.semester || '-'} • Sec {examInfo?.section || '-'}
+            </span>
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              {examInfo?.subject || 'Course'} ({examInfo?.code || `EX-${examId}`})
+            </span>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center">
@@ -118,7 +142,7 @@ export const PublishPage = () => {
               Confirm Publication
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Are you sure you want to publish the final marks for <strong>CS-301 DSA Final</strong>? Students will immediately gain access to their answer sheets, awarded marks, and concept breakdown.
+              Are you sure you want to publish the final marks for <strong>{examInfo?.title || 'this exam'}</strong>? Students enrolled in Semester {examInfo?.semester || '-'} Section {examInfo?.section || '-'} will immediately gain access to their answer sheets, awarded marks, and concept breakdown.
             </p>
 
             <div className="flex gap-3 pt-2">

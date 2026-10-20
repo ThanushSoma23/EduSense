@@ -22,6 +22,15 @@ async def lifespan(app: FastAPI):
             Base.metadata.create_all(bind=engine)
         except Exception as e:
             print(f"[Lifespan Notice] Dev table auto-creation skipped: {e}")
+
+    # OCR Pre-warming: loads cached model weights into memory during startup if configured
+    if settings.WARMUP_OCR_ON_STARTUP:
+        try:
+            from app.services.ocr_service import warmup_ocr
+            warmup_ocr()
+        except Exception as ocr_err:
+            print(f"[Lifespan Notice] OCR pre-warming error: {ocr_err}")
+
     yield
 
 
@@ -61,6 +70,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Include API v1 Routers
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+
+# Static files for uploaded references and question images
+from fastapi.staticfiles import StaticFiles
+uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
 @app.get("/health", tags=["System Health"])

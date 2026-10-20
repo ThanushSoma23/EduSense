@@ -14,3 +14,13 @@ pytest-cov>=4.0.0
 python-multipart>=0.0.6
 psycopg2-binary>=2.9.0
 pyyaml>=6.0.1
+numpy>=1.24.0
+pillow>=10.0.0
+opencv-python-headless>=4.8.0
+torch>=2.0.0
+torchvision>=0.15.0
+easyocr>=1.7.2
+sentencepiece>=0.1.99
+boto3>=1.28.0
+pypdfium2==5.11.0
+python-dotenv>=1.0.0

@@ -92,6 +92,8 @@ def test_teacher_ownership_enforcement_on_mark_approval(
         json={
             "title": "Teacher 1 Calculus Exam",
             "subject": "Math",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {
                     "question_number": 1,
@@ -147,6 +149,8 @@ def test_evaluation_ingestion_security_and_bounds(
         json={
             "title": "AI Security",
             "subject": "CS",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {
                     "question_number": 1,
@@ -312,6 +316,8 @@ def test_batch_review_atomic_rollback_on_failure(
         json={
             "title": "Batch Transaction Test Exam",
             "subject": "CS",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {"question_number": 1, "question_text": "Q1", "model_answer": "A1", "max_marks": 10.0},
                 {"question_number": 2, "question_text": "Q2", "model_answer": "A2", "max_marks": 10.0}
@@ -365,6 +371,8 @@ def test_batch_review_nonexistent_record_rollback(
         json={
             "title": "Batch Nonexistent Test Exam",
             "subject": "CS",
+            "semester": 6,
+            "section": 1,
             "questions": [{"question_number": 1, "question_text": "Q1", "model_answer": "A1", "max_marks": 10.0}]
         }
     )
@@ -399,13 +407,15 @@ def test_cross_exam_relationship_integrity(client, teacher_token_headers, studen
     Attempting to associate a student answer with a question from Exam B when submission is for Exam A
     MUST be rejected.
     """
-    exam_a = client.post("/api/v1/exams", headers=teacher_token_headers, json={"title": "Exam A", "subject": "CS"}).json()["id"]
+    exam_a = client.post("/api/v1/exams", headers=teacher_token_headers, json={"title": "Exam A", "subject": "CS", "semester": 6, "section": 1}).json()["id"]
     exam_b_res = client.post(
         "/api/v1/exams",
         headers=teacher_token_headers,
         json={
             "title": "Exam B",
             "subject": "CS",
+            "semester": 6,
+            "section": 1,
             "questions": [{"question_number": 1, "question_text": "QB", "model_answer": "AB", "max_marks": 10.0}]
         }
     )

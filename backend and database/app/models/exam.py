@@ -10,6 +10,9 @@ class Exam(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     subject = Column(String(255), nullable=False)
+    code = Column(String(50), nullable=True)
+    semester = Column(Integer, nullable=True, index=True)
+    section = Column(Integer, nullable=True, index=True)
     teacher_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     status = Column(String(50), nullable=False, default="DRAFT")  # DRAFT, PUBLISHED, COMPLETED, ARCHIVED
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -24,6 +27,12 @@ class Exam(Base):
     teacher = relationship("User", back_populates="exams")
     questions = relationship("Question", back_populates="exam", cascade="all, delete-orphan", order_by="Question.question_number")
     submissions = relationship("AnswerSheet", back_populates="exam", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        CheckConstraint("section IS NULL OR (section >= 1 AND section <= 4)", name="chk_exam_section_1_to_4"),
+        CheckConstraint("semester IS NULL OR (semester >= 1 AND semester <= 12)", name="chk_exam_semester_range"),
+        Index("idx_exams_class_lookup", "semester", "section", "subject"),
+    )
 
 
 class Question(Base):

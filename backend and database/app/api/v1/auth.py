@@ -12,7 +12,8 @@ from app.schemas.user import (
     StudentRegisterSchema,
     UserLogin,
     UserResponse,
-    Token
+    Token,
+    AcademicProfileUpdate
 )
 from app.security import hash_password, verify_password, create_access_token
 from app.api.deps import get_current_user
@@ -112,7 +113,11 @@ def register_student(payload: StudentRegisterSchema, db: Session = Depends(get_d
         email=payload.email,
         password_hash=hash_password(payload.password),
         role=UserRole.STUDENT,
-        account_status="active"
+        account_status="active",
+        roll_number=payload.roll_number,
+        department=payload.department or "Computer Science",
+        semester=payload.semester,
+        section=payload.section
     )
     db.add(student)
     db.commit()
@@ -232,3 +237,31 @@ def read_current_user_info(current_user: User = Depends(get_current_user)):
     data = user_resp.model_dump()
     data["user"] = user_resp
     return data
+
+
+@router.put("/me/academic-profile", response_model=UserResponse)
+def update_academic_profile(
+    payload: AcademicProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Updates student's registered semester, section, and academic details.
+    """
+    if current_user.role != UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can update an academic class profile."
+        )
+
+    current_user.semester = payload.semester
+    current_user.section = payload.section
+    if payload.department:
+        current_user.department = payload.department.strip()
+    if payload.roll_number:
+        current_user.roll_number = payload.roll_number.strip()
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+

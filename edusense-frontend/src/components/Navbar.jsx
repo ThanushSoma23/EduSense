@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { GraduationCap, LogOut, ChevronDown, Sparkles } from 'lucide-react'
+import { GraduationCap, LogOut, ChevronDown, Sparkles, Menu, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export const Navbar = () => {
@@ -8,6 +8,7 @@ export const Navbar = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -15,9 +16,30 @@ export const Navbar = () => {
     navigate('/')
   }
 
+  const handleNavClick = (sectionId) => {
+    setMobileMenuOpen(false)
+    if (location.pathname === '/') {
+      const el = document.getElementById(sectionId)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' })
+        return
+      }
+    }
+    navigate(`/#${sectionId}`)
+  }
+
+  const handleOpenAuth = (mode) => {
+    setMobileMenuOpen(false)
+    if (location.pathname === '/') {
+      window.dispatchEvent(new CustomEvent('edusense-auth-modal', { detail: { mode } }))
+    } else {
+      navigate(`/#${mode}`)
+    }
+  }
+
   return (
     <header className="sticky top-0 z-50 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-[#EAE6DF] px-6 lg:px-12 py-3.5 flex items-center justify-between">
-      {/* Brand Logo matching Kavya's screenshot */}
+      {/* Brand Logo */}
       <Link to="/" className="flex items-center gap-3 group">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF5B35] to-[#FF8A48] p-0.5 shadow-md shadow-[#FF5B35]/20 group-hover:scale-105 transition-transform flex items-center justify-center">
           <GraduationCap className="w-5 h-5 text-white" />
@@ -37,12 +59,30 @@ export const Navbar = () => {
         </div>
       </Link>
 
-      {/* Center Public Navigation Links from Screenshot */}
+      {/* Center Public Navigation Links */}
       {!user && (
         <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-[#475569]">
-          <a href="#features" className="hover:text-[#FF5B35] transition-colors">Features</a>
-          <a href="#how-it-works" className="hover:text-[#FF5B35] transition-colors">How it works</a>
-          <a href="#for-teachers-students" className="hover:text-[#FF5B35] transition-colors">For teachers & students</a>
+          <button
+            type="button"
+            onClick={() => handleNavClick('features')}
+            className="hover:text-[#FF5B35] transition-colors cursor-pointer"
+          >
+            Features
+          </button>
+          <button
+            type="button"
+            onClick={() => handleNavClick('how-it-works')}
+            className="hover:text-[#FF5B35] transition-colors cursor-pointer"
+          >
+            How it works
+          </button>
+          <button
+            type="button"
+            onClick={() => handleNavClick('for-teachers-students')}
+            className="hover:text-[#FF5B35] transition-colors cursor-pointer"
+          >
+            For teachers & students
+          </button>
         </nav>
       )}
 
@@ -114,7 +154,7 @@ export const Navbar = () => {
                   : 'text-[#475569] hover:text-[#0F172A] hover:bg-slate-50'
               }`}
             >
-              My Results
+              Exams & Results
             </Link>
           )}
         </nav>
@@ -127,7 +167,7 @@ export const Navbar = () => {
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2.5 bg-white border border-[#E2E8F0] p-1.5 pr-3 rounded-2xl hover:border-[#FF5B35] transition-all shadow-sm"
+              className="flex items-center gap-2.5 bg-white border border-[#E2E8F0] p-1.5 pr-3 rounded-2xl hover:border-[#FF5B35] transition-all shadow-sm cursor-pointer"
             >
               <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF5B35] to-[#FF8A48] text-white font-black flex items-center justify-center text-xs shadow-sm">
                 {user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
@@ -137,7 +177,7 @@ export const Navbar = () => {
                   {user.full_name || 'User Profile'}
                 </span>
                 <span className="block text-[10px] text-[#FF5B35] capitalize font-semibold">
-                  {user.role} {user.status === 'pending' ? '(Pending Approval)' : ''}
+                  {user.role} {user.semester ? `(Sem ${user.semester} • Sec ${user.section || 1})` : ''}
                 </span>
               </div>
               <ChevronDown className="w-4 h-4 text-[#94A3B8]" />
@@ -155,7 +195,7 @@ export const Navbar = () => {
 
                 <button
                   onClick={handleLogout}
-                  className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign Out
@@ -164,23 +204,78 @@ export const Navbar = () => {
             )}
           </div>
         ) : (
-          /* Public Top Navbar Buttons from Screenshot */
-          <div className="flex items-center gap-4">
-            <Link
-              to="/"
-              className="text-sm font-bold text-[#0F172A] hover:text-[#FF5B35] transition-colors"
+          /* Public Top Navbar Buttons */
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => handleOpenAuth('login')}
+              className="text-sm font-bold text-[#0F172A] hover:text-[#FF5B35] transition-colors cursor-pointer px-2 py-1"
             >
               Log in
-            </Link>
-            <Link
-              to="/"
-              className="px-5 py-2.5 rounded-xl bg-[#FF5B35] hover:bg-[#E84E29] text-white font-bold text-xs shadow-md shadow-[#FF5B35]/25 hover:scale-105 transition-all flex items-center gap-1.5"
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenAuth('register')}
+              className="px-4 sm:px-5 py-2.5 rounded-xl bg-[#FF5B35] hover:bg-[#E84E29] text-white font-bold text-xs shadow-md shadow-[#FF5B35]/25 hover:scale-105 transition-all flex items-center gap-1.5 cursor-pointer"
             >
               Get started free <span className="font-normal">→</span>
-            </Link>
+            </button>
+
+            {/* Mobile Hamburger Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-slate-600 hover:text-[#FF5B35] transition-colors cursor-pointer"
+              aria-label="Toggle Navigation Menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         )}
       </div>
+
+      {/* Mobile Drawer Menu */}
+      {!user && mobileMenuOpen && (
+        <div className="absolute top-full left-0 w-full bg-[#FAF8F5] border-b border-[#EAE6DF] p-6 shadow-xl space-y-4 md:hidden z-40 text-left">
+          <button
+            type="button"
+            onClick={() => handleNavClick('features')}
+            className="block w-full text-left font-bold text-sm text-[#0F172A] hover:text-[#FF5B35] py-2"
+          >
+            Features
+          </button>
+          <button
+            type="button"
+            onClick={() => handleNavClick('how-it-works')}
+            className="block w-full text-left font-bold text-sm text-[#0F172A] hover:text-[#FF5B35] py-2"
+          >
+            How it works
+          </button>
+          <button
+            type="button"
+            onClick={() => handleNavClick('for-teachers-students')}
+            className="block w-full text-left font-bold text-sm text-[#0F172A] hover:text-[#FF5B35] py-2"
+          >
+            For teachers & students
+          </button>
+          <div className="pt-2 border-t border-[#EAE6DF] flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => handleOpenAuth('login')}
+              className="w-full py-2.5 text-center font-bold text-sm rounded-xl bg-white border border-[#CBD5E1] text-[#0F172A]"
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenAuth('register')}
+              className="w-full py-2.5 text-center font-bold text-sm rounded-xl bg-[#FF5B35] text-white"
+            >
+              Get started free
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   )
 }

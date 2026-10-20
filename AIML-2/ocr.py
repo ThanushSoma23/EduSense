@@ -21,8 +21,14 @@ Flow for recognizing text with TrOCR:
 import os
 import io
 import logging
+from pathlib import Path
 from typing import List, Dict, Any, Union, Optional
 from PIL import Image
+from dotenv import load_dotenv
+
+ROOT_ENV = Path(__file__).resolve().parents[1] / ".env"
+if ROOT_ENV.exists():
+    load_dotenv(ROOT_ENV, override=False)
 import numpy as np
 
 try:
@@ -36,17 +42,29 @@ logger = logging.getLogger("AIML2.OCR")
 _GLOBAL_PROCESSOR = None
 _GLOBAL_MODEL = None
 _MODEL_LOAD_ATTEMPTED = False
+_LAST_LOAD_ERROR: Optional[str] = None
 
 
-def load_trocr(model_name: str = "microsoft/trocr-base-handwritten"):
+def get_trocr_load_error() -> Optional[str]:
+    """Returns the last error encountered during TrOCR loading, if any."""
+    global _LAST_LOAD_ERROR
+    return _LAST_LOAD_ERROR
+
+
+def load_trocr(
+    model_name: str = "microsoft/trocr-base-handwritten",
+    local_files_only: bool = True
+):
     """
     Loads Microsoft TrOCR processor and model into memory.
     Uses GPU if available, otherwise runs on CPU.
+    Enforces local_files_only=True by default to guarantee offline execution
+    and prevent unexpected background downloads.
 
     Returns:
         tuple: (processor, model) or (None, None) if loading fails.
     """
-    global _GLOBAL_PROCESSOR, _GLOBAL_MODEL, _MODEL_LOAD_ATTEMPTED
+    global _GLOBAL_PROCESSOR, _GLOBAL_MODEL, _MODEL_LOAD_ATTEMPTED, _LAST_LOAD_ERROR
 
     if _GLOBAL_PROCESSOR is not None and _GLOBAL_MODEL is not None:
         return _GLOBAL_PROCESSOR, _GLOBAL_MODEL
@@ -60,9 +78,9 @@ def load_trocr(model_name: str = "microsoft/trocr-base-handwritten"):
         import torch
         from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
-        logger.info(f"Loading TrOCR model: {model_name}...")
-        processor = TrOCRProcessor.from_pretrained(model_name)
-        model = VisionEncoderDecoderModel.from_pretrained(model_name)
+        logger.info(f"Loading TrOCR model offline ({model_name}, local_files_only={local_files_only})...")
+        processor = TrOCRProcessor.from_pretrained(model_name, local_files_only=local_files_only)
+        model = VisionEncoderDecoderModel.from_pretrained(model_name, local_files_only=local_files_only)
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model.to(device)
@@ -70,11 +88,26 @@ def load_trocr(model_name: str = "microsoft/trocr-base-handwritten"):
 
         _GLOBAL_PROCESSOR = processor
         _GLOBAL_MODEL = model
+        _LAST_LOAD_ERROR = None
         logger.info(f"TrOCR successfully loaded on device: {device}")
         return _GLOBAL_PROCESSOR, _GLOBAL_MODEL
 
     except Exception as error:
-        logger.warning(f"Could not load TrOCR model ({error}). Fallback mode active.")
+        err_msg = str(error)
+        if "sentencepiece" in err_msg.lower() or "tiktoken" in err_msg.lower():
+            _LAST_LOAD_ERROR = (
+                f"Missing dependency 'sentencepiece': required by Hugging Face to convert "
+                f"TrOCR fast tokenizer for '{model_name}'. Run 'pip install sentencepiece'."
+            )
+        elif "local_files_only" in err_msg.lower() or "not found" in err_msg.lower():
+            _LAST_LOAD_ERROR = (
+                f"TrOCR model weights or tokenizer not found in local cache for '{model_name}'. "
+                "Offline execution requires cached weights under ~/.cache/huggingface/hub."
+            )
+        else:
+            _LAST_LOAD_ERROR = f"TrOCR model initialization failed: {err_msg}"
+
+        logger.warning(f"Could not load TrOCR model: {_LAST_LOAD_ERROR}")
         return None, None
 
 
@@ -225,7 +258,7 @@ def split_image_into_lines(pil_image: Image.Image) -> List[Image.Image]:
 
 def extract_text_from_sheet(
     image_input: Union[str, bytes, Image.Image],
-    use_mock_fallback: bool = True
+    use_mock_fallback: bool = False
 ) -> List[Dict[str, Any]]:
     """
     Main function to extract text from an answer sheet image:

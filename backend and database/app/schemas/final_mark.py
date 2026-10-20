@@ -32,6 +32,9 @@ class StudentQuestionResult(BaseModel):
     question_number: int
     question_text: str
     max_marks: float
+    model_answer: Optional[str] = None
+    rubric: Optional[str] = None
+    submission_id: Optional[int] = None
     extracted_text: Optional[str] = None
     ai_suggested_marks: Optional[float] = None
     ai_feedback: Optional[str] = None
@@ -55,6 +58,8 @@ class StudentExamResultResponse(BaseModel):
     total_max_marks: float
     total_final_marks: Optional[float] = None
     is_published: bool = False
+    file_url: Optional[str] = None
+    file_reference: Optional[str] = None
     questions: List[StudentQuestionResult] = []
 
     model_config = ConfigDict(from_attributes=True)

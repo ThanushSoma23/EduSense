@@ -9,6 +9,8 @@ def test_ai_evaluation_storage_and_retrieval(client, teacher_token_headers, stud
         json={
             "title": "Machine Learning",
             "subject": "AI",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {
                     "question_number": 1,
