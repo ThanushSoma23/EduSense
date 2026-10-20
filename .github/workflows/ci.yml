@@ -28,7 +28,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Cache EasyOCR model weights
+        id: cache-easyocr
+        uses: actions/cache@v4
+        with:
+          path: ~/.EasyOCR/model
+          key: easyocr-models-v1-${{ runner.os }}-craft-english_g2
+
+      - name: Provision EasyOCR model weights
+        if: steps.cache-easyocr.outputs.cache-hit != 'true'
+        run: |
+          python scripts/provision_easyocr_models.py
+
       - name: Execute Fast Unit Tests
+        env:
+          EASYOCR_DOWNLOAD_ENABLED: "false"
         run: |
           pytest -v -rs --ignore=tests/test_postgresql_integration.py
 

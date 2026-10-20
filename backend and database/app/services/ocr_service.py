@@ -44,6 +44,26 @@ def get_last_ocr_error() -> Optional[str]:
     return _LAST_OCR_ERROR
 
 
+def get_easyocr_model_directory() -> str:
+    """
+    Resolves the directory containing EasyOCR craft_mlt_25k.pth and english_g2.pth models.
+    Checks:
+    1. Explicit EASYOCR_MODEL_DIR environment variable
+    2. Local .EasyOCR_model in the backend repository root
+    3. User home directory ~/.EasyOCR/model
+    """
+    custom = os.getenv("EASYOCR_MODEL_DIR")
+    if custom and os.path.isdir(custom):
+        return custom
+
+    local_model_dir = Path(__file__).resolve().parent.parent.parent / ".EasyOCR_model"
+    if (local_model_dir / "craft_mlt_25k.pth").exists() and (local_model_dir / "english_g2.pth").exists():
+        return str(local_model_dir)
+
+    home_model_dir = Path.home() / ".EasyOCR" / "model"
+    return str(home_model_dir)
+
+
 def extract_question_number_and_body(text: str) -> Optional[Tuple[int, str]]:
     """
     Check if a text line starts with or contains a recognizable question marker.
@@ -283,7 +303,13 @@ def run_easyocr_inference(file_bytes: bytes) -> Tuple[Optional[List[Dict[str, An
         if _EASYOCR_READER is None:
             logger.info("Initializing EasyOCR reader from local model cache...")
             download_enabled = os.getenv("EASYOCR_DOWNLOAD_ENABLED", "false").lower() in ("true", "1", "yes")
-            _EASYOCR_READER = easyocr.Reader(['en'], gpu=False, download_enabled=download_enabled)
+            model_storage = get_easyocr_model_directory()
+            _EASYOCR_READER = easyocr.Reader(
+                ['en'],
+                gpu=False,
+                model_storage_directory=model_storage,
+                download_enabled=download_enabled
+            )
 
         all_lines: List[Dict[str, Any]] = []
         has_quality_warning = False
@@ -529,7 +555,13 @@ def warmup_ocr() -> bool:
             import easyocr
             logger.info("Pre-warming EasyOCR reader from local model cache...")
             download_enabled = os.getenv("EASYOCR_DOWNLOAD_ENABLED", "false").lower() in ("true", "1", "yes")
-            _EASYOCR_READER = easyocr.Reader(['en'], gpu=False, download_enabled=download_enabled)
+            model_storage = get_easyocr_model_directory()
+            _EASYOCR_READER = easyocr.Reader(
+                ['en'],
+                gpu=False,
+                model_storage_directory=model_storage,
+                download_enabled=download_enabled
+            )
             return True
         except Exception as e:
             _LAST_OCR_ERROR = f"EasyOCR warmup failed: {str(e)}"

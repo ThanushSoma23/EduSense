@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     OCR_BACKEND: str = os.getenv("OCR_BACKEND", "easyocr")
     OCR_REVIEW_THRESHOLD: float = float(os.getenv("OCR_REVIEW_THRESHOLD", "0.70"))
     WARMUP_OCR_ON_STARTUP: bool = os.getenv("WARMUP_OCR_ON_STARTUP", "false").lower() in ("true", "1", "yes")
+    EASYOCR_MODEL_DIR: str = os.getenv("EASYOCR_MODEL_DIR", "")
 
     # Storage Configuration (Local vs S3-Compatible Cloud Storage)
     STORAGE_BACKEND: str = os.getenv("STORAGE_BACKEND", "local")
