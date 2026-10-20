@@ -199,7 +199,7 @@ from app.services.storage_service import get_storage_service
 
 
 @adapters_router.post("/exams/{exam_id}/sheets")
-async def upload_sheets_adapter(
+def upload_sheets_adapter(
     exam_id: str,
     student_id: Optional[int] = Form(None),
     files: List[UploadFile] = File(...),
@@ -288,7 +288,7 @@ async def upload_sheets_adapter(
             detail=f"Unsupported file format '{ext}'. Allowed: {', '.join(allowed_exts)}"
         )
 
-    file_bytes = await primary_file.read()
+    file_bytes = primary_file.file.read()
     if len(file_bytes) > max_file_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
