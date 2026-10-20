@@ -1,4 +1,4 @@
-name: EduSense AI CI - Backend & PostgreSQL Verification
+name: EduSense AI CI - Backend, PostgreSQL & Docker Verification
 
 on:
   push:
@@ -115,3 +115,31 @@ jobs:
           DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/edusense_test
         run: |
           pytest tests/test_postgresql_integration.py -v -rs --cov=app --cov-report=term-missing
+
+  docker-build:
+    name: Production Docker Build & Offline Model Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production backend Docker image
+        run: |
+          docker build \
+            -t edusense-backend:test \
+            -f "backend and database/Dockerfile" \
+            "backend and database"
+
+      - name: Verify baked EasyOCR models and offline initialization inside container
+        run: |
+          docker run --rm edusense-backend:test python -c "
+          import os, easyocr
+          assert os.path.isfile('/root/.EasyOCR/model/craft_mlt_25k.pth'), 'craft_mlt_25k.pth missing in container'
+          assert os.path.isfile('/root/.EasyOCR/model/english_g2.pth'), 'english_g2.pth missing in container'
+          assert os.getenv('EASYOCR_DOWNLOAD_ENABLED') == 'false', 'EASYOCR_DOWNLOAD_ENABLED must be false'
+          reader = easyocr.Reader(['en'], gpu=False, download_enabled=False)
+          print('Container EasyOCR offline verification passed.')
+          "
