@@ -52,4 +52,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Default runtime command: starts single Uvicorn worker to optimize memory and eliminate duplicate OCR model caching
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["/bin/sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"]
