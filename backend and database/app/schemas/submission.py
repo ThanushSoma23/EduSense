@@ -46,3 +46,22 @@ class AnswerSheetResponse(BaseModel):
     answers: List[StudentAnswerResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TranscribedAnswerItem(BaseModel):
+    question_number: int
+    question_id: Optional[int] = None
+    extracted_text: str
+    ocr_confidence: float
+    needs_review: bool
+    extraction_status: str
+
+
+class TranscribeSubmissionResponse(BaseModel):
+    submission_id: int
+    processing_status: str
+    total_questions: int
+    answers: List[TranscribedAnswerItem]
+    overall_confidence: float
+    needs_review: bool
+    backend_used: str

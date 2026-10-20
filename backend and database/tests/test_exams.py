@@ -8,6 +8,8 @@ def test_create_exam_as_teacher(client, teacher_token_headers):
         json={
             "title": "Data Structures & Algorithms Final Exam",
             "subject": "Computer Science",
+            "semester": 6,
+            "section": 1,
             "questions": [
                 {
                     "question_number": 1,
@@ -28,6 +30,8 @@ def test_create_exam_as_teacher(client, teacher_token_headers):
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
     assert data["title"] == "Data Structures & Algorithms Final Exam"
+    assert data["semester"] == 6
+    assert data["section"] == 1
     assert len(data["questions"]) == 2
     assert data["questions"][0]["question_number"] == 1
     assert data["questions"][0]["max_marks"] == 10.0
@@ -39,7 +43,9 @@ def test_create_exam_as_student_forbidden(client, student_token_headers):
         headers=student_token_headers,
         json={
             "title": "Unauthorized Exam",
-            "subject": "Physics"
+            "subject": "Physics",
+            "semester": 6,
+            "section": 1
         }
     )
     assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -50,7 +56,7 @@ def test_add_question_to_exam(client, teacher_token_headers):
     exam_res = client.post(
         "/api/v1/exams",
         headers=teacher_token_headers,
-        json={"title": "Linear Algebra", "subject": "Mathematics"}
+        json={"title": "Linear Algebra", "subject": "Mathematics", "semester": 6, "section": 1}
     )
     exam_id = exam_res.json()["id"]
 

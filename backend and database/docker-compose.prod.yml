@@ -1,0 +1,79 @@
+
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: edusense_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-edusense_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?FATAL: POSTGRES_PASSWORD must be set in environment}"
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-edusense_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+
+  # One-time migration runner (run via: docker compose -f docker-compose.prod.yml run --rm migration)
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edusense_migration
+    profiles: ["migration"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edusense_db}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY}
+      EVALUATION_SERVICE_KEY: ${EVALUATION_SERVICE_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    command: ["alembic", "upgrade", "head"]
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edusense_backend_prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edusense_db}
+      SECRET_KEY: "${SECRET_KEY:?FATAL: SECRET_KEY must be set in environment}"
+      ADMIN_SECRET_KEY: "${ADMIN_SECRET_KEY:?FATAL: ADMIN_SECRET_KEY must be set in environment}"
+      EVALUATION_SERVICE_KEY: "${EVALUATION_SERVICE_KEY:?FATAL: EVALUATION_SERVICE_KEY must be set in environment}"
+      CORS_ORIGINS: "${CORS_ORIGINS:?FATAL: CORS_ORIGINS must be set in environment}"
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      STORAGE_LOCAL_DIR: uploads
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-}
+      STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
+      STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
+      STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY:-}
+      STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY:-}
+      WARMUP_OCR_ON_STARTUP: ${WARMUP_OCR_ON_STARTUP:-true}
+      OCR_BACKEND: ${OCR_BACKEND:-easyocr}
+      EASYOCR_DOWNLOAD_ENABLED: "false"
+    volumes:
+      - backend_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  postgres_prod_data:
+  backend_uploads:

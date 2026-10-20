@@ -1,30 +1,78 @@
-# Python
+# Python compiled files
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Virtual environments
 venv/
+.venv/
 env/
 ENV/
+AIML-2/venv/
+**/venv/
+**/.venv/
+
+# Pytest, coverage & testing caches
 .pytest_cache/
+**/.pytest_cache/
 .coverage
 htmlcov/
 
 # Environment variables & secrets
 .env
 .env.local
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
-# Databases
+# Uploads & persistent storage
+uploads/
+**/uploads/
+
+# Model weights and caches
+*.pth
+*.pt
+*.bin
+*.onnx
+.EasyOCR_model/
+**/.EasyOCR_model/
+.cache/
+**/.cache/
+
+# Databases & local stores
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
 
-# IDEs
+# Runtime logs & temporary scratch files
+*.log
+logs/
+**/logs/
+scratch/
+**/scratch/
+
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 
+# OS files
+Thumbs.db
+.DS_Store
+
 # Untracked unrelated directories
 dsn/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
